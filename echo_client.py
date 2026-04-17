@@ -1,5 +1,5 @@
-# CECS 327 Assignment 5 
-# Group members: Matthew Saldivar, Brandon Samson
+# CECS 327 Assignment 8
+# Group members: Ryan Vu, Brandon Samson
 
 import socket
 
