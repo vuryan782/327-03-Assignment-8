@@ -3,6 +3,11 @@
 
 import socket
 
+query_dict = {
+    "1": "What is the average moisture inside our kitchen fridges in the past hours, week and month?",
+    "2": "What is the average water consumption per cycle across our smart dishwashers in the past hour, week and month?",
+    "3": "Which house consumed more electricity in the past 24 hours, and by how much?"
+}
 
 # Asks user for a valid server IP or hostname
 def get_server_ip() -> str:
@@ -43,16 +48,27 @@ def run_client() -> None:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket: # Creates TCP socket
             client_socket.connect((server_ip, server_port)) # Connects to server 
             print(f"Connected to server {server_ip}:{server_port}")
-            print("Type messages to send. Type 'quit' to exit.")
 
             while True: # Infinite loop
-                message = input("Message: ")
-                if message.lower() == "quit": # Breaks infinite loop if user types "quit"
+
+                print("\n Queries:")
+                print("1. What is the average moisture inside our kitchen fridges in the past hours, week and month?")
+                print("2. What is the average water consumption per cycle across our smart dishwashers in the past hour, week and month?")
+                print("3. Which house consumed more electricity in the past 24 hours, and by how much?")
+                print("Type 'quit' to exit.\n")
+
+                user_input = input("Enter query number: ").strip()
+                if user_input.lower() == "quit": # Breaks infinite loop if user types "quit"
                     print("Closing connection.")
                     break
 
-                client_socket.sendall(message.encode("utf-8"))
-                response = client_socket.recv(1024) # Waits for response from server
+                if user_input not in query_dict:
+                    print("Sorry, this query cannot be processed. Please try one of the supported queries")
+                    continue
+                
+                query = query_dict[user_input]
+                client_socket.sendall(query.encode("utf-8"))
+                response = client_socket.recv(4096) # Waits for response from server
 
                 if not response:
                     print("Server closed the connection.")
