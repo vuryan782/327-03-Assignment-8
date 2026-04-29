@@ -36,6 +36,8 @@ MOISTURE_KEYS = [
     "moisture_level",
     "moisture",
     "humidity",
+    "Moisture Meter - smart-fridge-1-moisture-sensor",
+    "Moisture Meter - smart-fridge-2-moisture-sensor",
 ]
 
 CURRENT_KEYS = [
@@ -43,6 +45,9 @@ CURRENT_KEYS = [
     "Current Sensor - current_usage",
     "ammeter",
     "current",
+    "smart-dishwasher-ammeter",
+    "smart-fridge-1-ammeter",
+    "smart-fridge-2-ammeter",
 ]
 
 WATER_KEYS = [
@@ -52,6 +57,7 @@ WATER_KEYS = [
     "Water Consumption Sensor - water_usage",
     "flow_sensor",
     "water_per_cycle",
+    "smart-dishwasher-water-sensor",
 ]
 
 
