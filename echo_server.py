@@ -2,17 +2,21 @@
 # Group members: Ryan Vu, Brandon Samson
 
 import socket
+from typing import Optional
 
 from db import (
     get_average_moisture,
     get_average_water_consumption,
     get_house_electricity_totals_24h,
+    get_query_coverage_note,
 )
 
 
 MOISTURE_QUERY = "What is the average moisture inside our kitchen fridges in the past hours, week and month?"
 WATER_QUERY = "What is the average water consumption per cycle across our smart dishwashers in the past hour, week and month?"
 ELECTRICITY_QUERY = "Which house consumed more electricity in the past 24 hours, and by how much?"
+
+INVALID_QUERY_MESSAGE = "Sorry, this query cannot be processed. Please try one of the supported queries."
 
 
 def get_server_port() -> int:
@@ -27,65 +31,90 @@ def get_server_port() -> int:
             print("Error: Port must be a number.")
 
 
+def _format_optional(value: Optional[float], unit: str) -> str:
+    if value is None:
+        return "No data"
+    return f"{value:.2f} {unit}"
+
+
+def _format_average_report(
+    title: str,
+    unit: str,
+    one_hour: Optional[float],
+    one_week: Optional[float],
+    one_month: Optional[float],
+) -> str:
+    return (
+        f"{title}\n"
+        f"Past hour: {_format_optional(one_hour, unit)}\n"
+        f"Past week: {_format_optional(one_week, unit)}\n"
+        f"Past month: {_format_optional(one_month, unit)}\n"
+        f"Coverage note: {get_query_coverage_note(24 * 30)}"
+    )
+
+
 def handle_query(message: str) -> str:
-    """
-    Routes the incoming client query to the correct database/calculation function.
-    """
+    message = message.strip()
+
     if message == MOISTURE_QUERY:
-        hour_avg = get_average_moisture(1)
-        week_avg = get_average_moisture(24 * 7)
-        month_avg = get_average_moisture(24 * 30)
-
-        if hour_avg is None and week_avg is None and month_avg is None:
-            return "No moisture data found."
-
-        return (
-            "Average fridge moisture:\n"
-            f"Past hour: {hour_avg:.2f}%\n"
-            f"Past week: {week_avg:.2f}%\n"
-            f"Past month: {month_avg:.2f}%"
+        return _format_average_report(
+            "Average moisture inside kitchen fridges:",
+            "%",
+            get_average_moisture(1),
+            get_average_moisture(24 * 7),
+            get_average_moisture(24 * 30),
         )
 
-    elif message == WATER_QUERY:
-        hour_avg = get_average_water_consumption(1)
-        week_avg = get_average_water_consumption(24 * 7)
-        month_avg = get_average_water_consumption(24 * 30)
-
-        if hour_avg is None and week_avg is None and month_avg is None:
-            return "No dishwasher water consumption data found."
-
-        return (
-            "Average dishwasher water consumption per cycle:\n"
-            f"Past hour: {hour_avg:.2f} gallons\n"
-            f"Past week: {week_avg:.2f} gallons\n"
-            f"Past month: {month_avg:.2f} gallons"
+    if message == WATER_QUERY:
+        return _format_average_report(
+            "Average water consumption per dishwasher cycle:",
+            "gallons",
+            get_average_water_consumption(1),
+            get_average_water_consumption(24 * 7),
+            get_average_water_consumption(24 * 30),
         )
 
-    elif message == ELECTRICITY_QUERY:
+    if message == ELECTRICITY_QUERY:
         totals = get_house_electricity_totals_24h()
 
-        if not totals or len(totals) < 2:
+        if len(totals) < 2:
             return "Not enough house electricity data found to compare both houses."
 
         house_a = totals[0]
         house_b = totals[1]
 
-        if house_a["total_current_usage"] > house_b["total_current_usage"]:
+        a_total = float(house_a.get("total_current_usage", 0.0))
+        b_total = float(house_b.get("total_current_usage", 0.0))
+
+        if a_total > b_total:
             winner = house_a["house"]
             loser = house_b["house"]
-            diff = house_a["total_current_usage"] - house_b["total_current_usage"]
-        else:
+            difference = a_total - b_total
+        elif b_total > a_total:
             winner = house_b["house"]
             loser = house_a["house"]
-            diff = house_b["total_current_usage"] - house_a["total_current_usage"]
+            difference = b_total - a_total
+        else:
+            return (
+                "Both houses consumed the same amount of electricity in the past 24 hours.\n"
+                f"{house_a['house']}: {a_total:.2f} amp-reading total "
+                f"({house_a.get('reading_count', 0)} readings)\n"
+                f"{house_b['house']}: {b_total:.2f} amp-reading total "
+                f"({house_b.get('reading_count', 0)} readings)\n"
+                f"Coverage note: {get_query_coverage_note(24)}"
+            )
 
         return (
             f"{winner} consumed more electricity than {loser} in the past 24 hours.\n"
-            f"Difference: {diff:.2f} amps"
+            f"Difference: {difference:.2f} amp-reading total.\n"
+            f"{house_a['house']}: {a_total:.2f} amp-reading total "
+            f"({house_a.get('reading_count', 0)} readings)\n"
+            f"{house_b['house']}: {b_total:.2f} amp-reading total "
+            f"({house_b.get('reading_count', 0)} readings)\n"
+            f"Coverage note: {get_query_coverage_note(24)}"
         )
 
-    else:
-        return "Sorry, this query cannot be processed. Please try one of the supported queries."
+    return INVALID_QUERY_MESSAGE
 
 
 def run_server() -> None:
@@ -117,14 +146,14 @@ def run_server() -> None:
 
                     try:
                         response = handle_query(message)
-                    except Exception as e:
-                        response = f"Server error while processing query: {e}"
+                    except Exception as exc:
+                        response = f"Server error while processing query: {exc}"
 
                     conn.sendall(response.encode("utf-8"))
                     print(f"Sent: {response}")
 
-    except OSError as e:
-        print(f"Socket error: {e}")
+    except OSError as exc:
+        print(f"Socket error: {exc}")
     except KeyboardInterrupt:
         print("\nServer stopped by user.")
 
