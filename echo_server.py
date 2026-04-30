@@ -9,7 +9,9 @@ from db import (
     get_average_water_consumption,
     get_house_electricity_totals_24h,
     get_query_coverage_note,
+    format_pst,
 )
+from datetime import datetime, timedelta, timezone
 
 
 MOISTURE_QUERY = "What is the average moisture inside our kitchen fridges in the past hours, week and month?"
@@ -18,6 +20,10 @@ ELECTRICITY_QUERY = "Which house consumed more electricity in the past 24 hours,
 
 INVALID_QUERY_MESSAGE = "Sorry, this query cannot be processed. Please try one of the supported queries."
 
+def get_query_window_pst(hours: int) -> str:
+    end_utc = datetime.now(timezone.utc)
+    start_utc = end_utc - timedelta(hours=hours)
+    return f"{format_pst(start_utc)} to {format_pst(end_utc)}"
 
 def get_server_port() -> int:
     while True:
@@ -57,22 +63,28 @@ def handle_query(message: str) -> str:
     message = message.strip()
 
     if message == MOISTURE_QUERY:
-        return _format_average_report(
-            "Average moisture inside kitchen fridges:",
-            "%",
-            get_average_moisture(1),
-            get_average_moisture(24 * 7),
-            get_average_moisture(24 * 30),
-        )
-
+        return (
+    _format_average_report(
+        "Average moisture inside kitchen fridges:",
+        "%",
+        get_average_moisture(1),
+        get_average_moisture(24 * 7),
+        get_average_moisture(24 * 30),
+    )
+    + f"\nQuery window: {get_query_window_pst(24 * 30)}"
+)
+        
     if message == WATER_QUERY:
-        return _format_average_report(
-            "Average water consumption per dishwasher cycle:",
-            "gallons",
-            get_average_water_consumption(1),
-            get_average_water_consumption(24 * 7),
-            get_average_water_consumption(24 * 30),
-        )
+        return (
+    _format_average_report(
+        "Average water consumption per dishwasher cycle:",
+        "gallons",
+        get_average_water_consumption(1),
+        get_average_water_consumption(24 * 7),
+        get_average_water_consumption(24 * 30),
+    )
+    + f"\nQuery window: {get_query_window_pst(24 * 30)}"
+)
 
     if message == ELECTRICITY_QUERY:
         totals = get_house_electricity_totals_24h()
@@ -111,6 +123,7 @@ def handle_query(message: str) -> str:
             f"({house_a.get('reading_count', 0)} readings)\n"
             f"{house_b['house']}: {b_total:.2f} amp-reading total "
             f"({house_b.get('reading_count', 0)} readings)\n"
+            f"Query window: {get_query_window_pst(24)}\n"
             f"Coverage note: {get_query_coverage_note(24)}"
         )
 
