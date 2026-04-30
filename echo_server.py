@@ -25,6 +25,11 @@ def get_query_window_pst(hours: int) -> str:
     start_utc = end_utc - timedelta(hours=hours)
     return f"{format_pst(start_utc)} to {format_pst(end_utc)}"
 
+def liters_to_gallons(liters: Optional[float]) -> Optional[float]:
+    if liters is None:
+        return None
+    return liters * 0.264172
+
 def get_server_port() -> int:
     while True:
         raw_port = input("Enter server port (1-65535): ").strip()
@@ -79,9 +84,9 @@ def handle_query(message: str) -> str:
     _format_average_report(
         "Average water consumption per dishwasher cycle:",
         "gallons",
-        get_average_water_consumption(1),
-        get_average_water_consumption(24 * 7),
-        get_average_water_consumption(24 * 30),
+        liters_to_gallons(get_average_water_consumption(1)),
+        liters_to_gallons(get_average_water_consumption(24 * 7)),
+        liters_to_gallons(get_average_water_consumption(24 * 30)),
     )
     + f"\nQuery window: {get_query_window_pst(24 * 30)}"
 )
